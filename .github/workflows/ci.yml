@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # sdk-ts consumes @openswitchboard/schema via file:../schema,
+      # so check the two repos out side by side.
+      - uses: actions/checkout@v4
+        with:
+          path: sdk-ts
+      - uses: actions/checkout@v4
+        with:
+          repository: openswitchboard-ai/schema
+          path: schema
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+        working-directory: sdk-ts
+      - name: Lint (typecheck)
+        run: npm run lint
+        working-directory: sdk-ts
+      - name: Tests (incl. fixture round-trip + no-leak proof)
+        run: npm test
+        working-directory: sdk-ts
