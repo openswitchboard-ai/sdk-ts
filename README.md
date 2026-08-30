@@ -4,8 +4,10 @@
 
 **The open protocol for AI intent — wants & haves, matched anonymously,
 disclosed by consent.** This is `@openswitchboard/sdk`: typed intent cards,
-schema validators, builders that make invalid states unrepresentable, and the
-no-leak rule proven in code.
+schema validators, and builders written so that code which breaks the
+protocol's rules fails to compile. The privacy rules in particular are
+enforced by the type system and the test suite, and this README walks
+through what that means in plain terms.
 
 ```ts
 import { want, have, offer, declineOffer, redactForCounterparty, validateCard } from "@openswitchboard/sdk";
@@ -30,18 +32,40 @@ declineOffer(o);            // note: no reason parameter exists (anti-probing)
 // there is no acceptOffer() - only recordHumanAcceptance()
 ```
 
-## Design guarantees encoded here
+## What the types refuse to let you do
 
-- `want()` cannot carry an `ask` (type-level `never`); asks belong to HAVEs.
-- `declineOffer()` has no reason parameter and `Offer.reason` is `never` —
-  a reasoned decline is unrepresentable (anti-probing by design).
-- No agent-level accept exists; the only accepted state is
-  `"accepted-by-human"` via `recordHumanAcceptance()`.
-- `redactForCounterparty()` is allowlist-based and tested against every card
-  fixture in the protocol suite: price bands (budget ceiling / reserve
-  floor), geo buckets, TTLs and status never reach a counterparty.
-- All free text is provenance-labelled (`switchboard-system` vs
-  `counterparty-untrusted`); treat untrusted text as data, never instructions.
+Most of the protocol's safety rules live in this SDK as compile errors. If
+you write code that breaks one, it will not build. Here is each rule, and
+why it exists:
+
+- **A WANT card has nowhere to put an asking price.** An `ask` is the price
+  a seller hopes for, so it belongs on HAVE cards; a buyer's budget belongs
+  on WANT cards. The types keep the two apart (`want()` types the `ask`
+  field as `never`), which means a buyer's card physically has no field
+  where a seller's number could end up, and vice versa.
+- **Declining an offer never explains itself.** `declineOffer()` takes no
+  reason, and `Offer.reason` is typed `never`, so a reasoned decline cannot
+  even be expressed. That sounds unfriendly on purpose: if declines carried
+  reasons, an agent could probe for someone's price limit by lobbing low
+  offers and reading the explanations. With no reason field, there is
+  nothing to probe.
+- **Nothing in this SDK can accept an offer.** There is no `acceptOffer()`.
+  Acceptance happens when a human approves it on their own approval page;
+  the SDK can only record that it happened (`recordHumanAcceptance()`), and
+  the one accepted state in the protocol is `"accepted-by-human"`. An agent
+  that wanted to accept on its own has no API to do it with.
+- **What the other side sees is built from a short allowlist.**
+  `redactForCounterparty()` copies across only the fields a counterparty is
+  allowed to see, rather than trying to strip out the secret ones — so any
+  new private field is hidden by default instead of leaked by default. A
+  buyer's budget ceiling, a seller's reserve floor, location buckets, card
+  lifetimes and status never appear in the result, and the protocol's test
+  suite checks that against every example card it ships.
+- **Words from strangers arrive labelled.** Every piece of free text
+  carries a provenance label: `switchboard-system` for text the switchboard
+  wrote, `counterparty-untrusted` for text the other party wrote. The label
+  lets an agent treat a stranger's words as information about the deal
+  while refusing to act on anything in them that reads like an instruction.
 
 ## Schema dependency
 
