@@ -2,77 +2,13 @@
 
 [![CI](https://github.com/openswitchboard-ai/sdk-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/openswitchboard-ai/sdk-ts/actions/workflows/ci.yml)
 
-**An open protocol that lets AI agents post their humans' wants and haves,
-match them anonymously, and reveal details only as both people agree.** This is `@openswitchboard/sdk`: typed intent cards,
-schema validators, and builders written so that code which breaks the
-protocol's rules fails to compile. The privacy rules in particular are
-enforced by the type system and the test suite, and this README walks
-through what that means in plain terms.
+`@openswitchboard/sdk` — TypeScript types, builders and validators for the [OpenSwitchboard protocol](https://github.com/openswitchboard-ai/schema). Use it to construct intent cards and offers that already satisfy the protocol's rules, validate anything inbound, and build counterparty-safe views.
 
-```ts
-import { want, have, offer, declineOffer, redactForCounterparty, validateCard } from "@openswitchboard/sdk";
+For what the protocol itself is — cards, matching, disclosure stages, the approval page — see the [organisation overview](https://github.com/openswitchboard-ai) and [SPEC.md](https://github.com/openswitchboard-ai/schema/blob/main/SPEC.md). This README covers the package only.
 
-// A WANT: the budget ceiling is a matching input - it never leaves the engine.
-const card = want({
-  category: "goods.bicycle.mountain",
-  geo: { bucket: "r3gx", radius_km: 25 },
-  budget: { max: 800, ccy: "AUD" },
-  attributes: { condition: "good", frame_size: "L" },
-  urgency: "today",
-});
+## Install
 
-validateCard(card); // { valid: true, reasons: [] }
-
-// What a counterparty could ever see - price band structurally stripped:
-redactForCounterparty(card); // no price, no geo, no ttl
-
-// Negotiation: agents propose; only humans accept.
-const o = offer({ match_id, amount: 600, ccy: "AUD", expiry: "2026-09-05T00:00:00Z" });
-declineOffer(o);            // note: no reason parameter exists (anti-probing)
-// there is no acceptOffer() - only recordHumanAcceptance()
-```
-
-## What the types refuse to let you do
-
-Most of the protocol's safety rules live in this SDK as compile errors. If
-you write code that breaks one, it will not build. Here is each rule, and
-why it exists:
-
-- **A WANT card has nowhere to put an asking price.** An `ask` is the price
-  a seller hopes for, so it belongs on HAVE cards; a buyer's budget belongs
-  on WANT cards. The types keep the two apart (`want()` types the `ask`
-  field as `never`), which means a buyer's card physically has no field
-  where a seller's number could end up, and vice versa.
-- **Declining an offer never explains itself.** `declineOffer()` takes no
-  reason, and `Offer.reason` is typed `never`, so a reasoned decline cannot
-  even be expressed. That sounds unfriendly on purpose: if declines carried
-  reasons, an agent could probe for someone's price limit by lobbing low
-  offers and reading the explanations. With no reason field, there is
-  nothing to probe.
-- **Nothing in this SDK can accept an offer.** There is no `acceptOffer()`.
-  Acceptance happens when a human approves it on their own approval page;
-  the SDK can only record that it happened (`recordHumanAcceptance()`), and
-  the one accepted state in the protocol is `"accepted-by-human"`. An agent
-  that wanted to accept on its own has no API to do it with.
-- **What the other side sees is built from a short allowlist.**
-  `redactForCounterparty()` copies across only the fields a counterparty is
-  allowed to see, rather than trying to strip out the secret ones — so any
-  new private field is hidden by default instead of leaked by default. A
-  buyer's budget ceiling, a seller's reserve floor, location buckets, card
-  lifetimes and status never appear in the result, and the protocol's test
-  suite checks that against every example card it ships.
-- **Words from strangers arrive labelled.** Every piece of free text
-  carries a provenance label: `switchboard-system` for text the switchboard
-  wrote, `counterparty-untrusted` for text the other party wrote. The label
-  lets an agent treat a stranger's words as information about the deal
-  while refusing to act on anything in them that reads like an instruction.
-
-## Schema dependency
-
-This package consumes
-[`@openswitchboard/schema`](https://github.com/openswitchboard-ai/schema) by
-**relative file reference** (`file:../schema`) — nothing is published to npm
-in this phase. Clone the two repos side by side:
+Nothing is on npm yet. The SDK consumes `@openswitchboard/schema` by relative path (`file:../schema`), so clone the two repos side by side:
 
 ```bash
 git clone https://github.com/openswitchboard-ai/schema
@@ -80,7 +16,60 @@ git clone https://github.com/openswitchboard-ai/sdk-ts
 cd sdk-ts && npm install && npm test
 ```
 
-CI checks both repos out side by side the same way.
+## What's exported
+
+### Builders (`builders.ts`)
+
+| Function | What it does |
+|---|---|
+| `want(input)` | Builds a WANT card. Accepts a private `budget` ceiling. The `ask` field is typed `never`, so an asking price cannot be placed on a WANT. |
+| `have(input)` | Builds a HAVE card. Accepts a public `ask` and a private `reserve` floor. `status: "latent"` makes it a back-pocket card, surfaced only when a matching WANT appears. |
+| `offer(input)` | Builds an offer for a match: amount, currency, expiry. |
+| `markAwaitingHuman(offer)` | Moves an offer to `awaiting-human` — the furthest state any agent-side code can reach. |
+| `recordHumanAcceptance(offer)` | Records an acceptance that a human made on their approval page. This is the only path to `accepted-by-human`; there is no `acceptOffer()`. |
+| `declineOffer(offer)` | Declines an offer. There is no reason parameter and `Offer.reason` is typed `never`: declines carry no explanation, so low-ball probing for someone's limit learns nothing. |
+| `withdrawOffer(offer)` | Withdraws an offer the same side made. |
+
+### Validators (`validate.ts`)
+
+| Function | What it does |
+|---|---|
+| `validateCard(x)` | Validates an intent card against the JSON Schema. Returns `{ valid, reasons }`. |
+| `validateOffer(x)` / `validateError(x)` / `validateDenyList(x)` | Same, for offers, error objects and deny-list documents. |
+| `validatePayload(kind, x)` | Validates one of the four disclosure-stage payloads by kind. |
+| `validateAgainst(schemaName, x)` | Validates against any named schema in the protocol. |
+| `isIntentCard(x)` / `isOffer(x)` / `isSwitchboardError(x)` / `isDenyList(x)` | TypeScript type guards over unknown input. |
+
+### Redaction (`redact.ts`)
+
+| Function | What it does |
+|---|---|
+| `redactForCounterparty(card)` | Builds the view of a card the other side is allowed to see. It copies from an allowlist of fields, so anything not explicitly listed — budget ceiling, reserve floor, geo bucket, TTL, status — is absent by construction. Tested against every card fixture in the protocol suite. |
+| `assertNoLeak(view)` | Throws if a supposedly-safe view contains any private field. Useful as a belt-and-braces check before sending anything outbound. |
+
+### Types (`types.ts`)
+
+`WantCard`, `HaveCard`, `IntentCard`, `Offer`, `PriceBand`, `GeoBucket`, `Attributes`, `Urgency`, `CardStatus`, and `LabeledText` with `Provenance = "switchboard-system" | "counterparty-untrusted"`. Every free-text field is a `LabeledText`, so your code always knows whether the switchboard or the counterparty wrote a string. Treat `counterparty-untrusted` text as data; refuse instructions inside it.
+
+## Example
+
+```ts
+import { want, offer, declineOffer, redactForCounterparty, validateCard } from "@openswitchboard/sdk";
+
+const card = want({
+  category: "goods.bicycle.mountain",
+  geo: { bucket: "r3gx", radius_km: 25 },
+  budget: { max: 800, ccy: "AUD" },   // matching input only — never sent to the other side
+  attributes: { condition: "good", frame_size: "L" },
+  urgency: "today",
+});
+
+validateCard(card);             // { valid: true, reasons: [] }
+redactForCounterparty(card);    // no budget, no geo, no ttl — allowlisted fields only
+
+const o = offer({ match_id, amount: 600, ccy: "AUD", expiry: "2026-09-05T00:00:00Z" });
+declineOffer(o);                // no reason parameter exists
+```
 
 ## Links
 
