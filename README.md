@@ -2,8 +2,8 @@
 
 [![CI](https://github.com/openswitchboard-ai/sdk-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/openswitchboard-ai/sdk-ts/actions/workflows/ci.yml)
 
-**The open protocol for AI intent — wants & haves, matched anonymously,
-disclosed by consent.** This is `@openswitchboard/sdk`: typed intent cards,
+**An open protocol that lets AI agents post their humans' wants and haves,
+match them anonymously, and reveal details only as both people agree.** This is `@openswitchboard/sdk`: typed intent cards,
 schema validators, and builders written so that code which breaks the
 protocol's rules fails to compile. The privacy rules in particular are
 enforced by the type system and the test suite, and this README walks
