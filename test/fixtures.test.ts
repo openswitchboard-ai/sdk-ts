@@ -1,7 +1,7 @@
 /**
- * Round-trip every fixture shipped by @openswitchboard/schema through the
+ * Round-trip every example shipped by @openswitchboard/schema through the
  * SDK's validators: the SDK must agree exactly with the protocol's
- * conformance suite, including WHY each invalid fixture fails.
+ * conformance suite, including WHY each one that must fail does.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -29,7 +29,7 @@ const fixtures: Fixture[] = readdirSync(dir)
 
 describe("SDK round-trips every schema fixture", () => {
   it("found the full fixture suite", () => {
-    expect(fixtures.length).toBeGreaterThanOrEqual(25);
+    expect(fixtures.length).toBeGreaterThanOrEqual(60);
   });
 
   for (const f of fixtures) {

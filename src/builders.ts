@@ -7,6 +7,8 @@
  * - There is no acceptOffer(): agents cannot accept. The only path to an
  *   accepted state is recordHumanAcceptance(), which exists precisely so the
  *   call site reads as what it must be - a recorded human decision.
+ * - channelMessage() has no provenance parameter: a message carried across a
+ *   channel is always the other side's words, and the label says so.
  */
 import { randomUUID } from "node:crypto";
 import type {
@@ -14,6 +16,7 @@ import type {
   Attributes,
   Ccy,
   Category,
+  ChannelMessage,
   GeoBucket,
   HaveCard,
   Offer,
@@ -22,10 +25,11 @@ import type {
   WantCard,
 } from "./types.js";
 
-export const SCHEMA_VERSION = "0.1.0";
+export const SCHEMA_VERSION = "0.5.0";
 
 export interface WantInput {
   category: Category;
+  /** A place name, a canonical cell, or both. Matching input only. */
   geo: GeoBucket;
   /** Budget ceiling - matching input only, never disclosed. */
   budget?: { max: number; min?: number; ccy: Ccy };
@@ -57,6 +61,7 @@ export function want(input: WantInput): WantCard {
 
 export interface HaveInput {
   category: Category;
+  /** A place name, a canonical cell, or both. Matching input only. */
   geo: GeoBucket;
   /** Reserve floor - matching input only, never disclosed. */
   reserve?: { min: number; ccy: Ccy };
@@ -140,4 +145,33 @@ export function declineOffer(o: Offer): Offer {
 /** Withdraw a proposed offer. */
 export function withdrawOffer(o: Offer): Offer {
   return { ...o, state: "withdrawn" };
+}
+
+export interface ChannelMessageInput {
+  /** The channel to send on, as issued by channel.open. */
+  channel_id: string;
+  text: string;
+  /** ISO date-time. Defaults to now. */
+  sent_at?: string;
+  /** Position in the batch being handed over, counting from 1. */
+  seq?: number;
+}
+
+/**
+ * Build one message for an open channel. Note the signature again: there is
+ * no provenance parameter and ChannelBody admits one value, so a message
+ * cannot be built claiming to be switchboard text. Whatever this carries, the
+ * agent receiving it is told to show it to its human rather than act on it.
+ */
+export function channelMessage(input: ChannelMessageInput): ChannelMessage {
+  const msg: ChannelMessage = {
+    schema_version: SCHEMA_VERSION,
+    kind: "channel.message",
+    channel_id: input.channel_id,
+    message_id: randomUUID(),
+    sent_at: input.sent_at ?? new Date().toISOString(),
+    body: { text: input.text, provenance: "counterparty-untrusted" },
+  };
+  if (input.seq !== undefined) msg.seq = input.seq;
+  return msg;
 }

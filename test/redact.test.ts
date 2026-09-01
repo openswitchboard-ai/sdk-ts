@@ -1,7 +1,7 @@
 /**
  * Proof of the no-leak rule: redactForCounterparty() strips every matching
- * input (price band, geo, ttl, status) from every card - including every
- * valid card fixture shipped with the protocol.
+ * input (price band, location, ttl, status) from every card - including every
+ * valid card the protocol package ships as an example.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -55,6 +55,27 @@ describe("redactForCounterparty proves the no-leak rule", () => {
     expect(() => assertNoLeak(view)).not.toThrow();
   });
 
+  it("keeps the place name back, the same as the cell it resolves to", () => {
+    // A place is a matching input, not a disclosure: the stage-2 message the
+    // server builds carries attributes and a stated ask and nothing else, and
+    // its schema has no slot for a location at all. Where someone is reaches a
+    // counterparty at stage 3, from the locality on the profile that human
+    // filled in for it, once both sides have opted in.
+    const card = have({
+      category: "goods.furniture.sofa",
+      geo: { place: "Newtown, NSW", bucket: "r3gx", radius_km: 15 },
+      ask: { amount: 120, ccy: "AUD" },
+      attributes: { condition: "good" },
+    });
+    const view = redactForCounterparty(card);
+    const blob = JSON.stringify(view);
+    for (const leak of ["Newtown", "NSW", "r3gx", "place", "bucket", "geo", "15"]) {
+      expect(blob).not.toContain(leak);
+    }
+    expect(() => assertNoLeak(view)).not.toThrow();
+    expect(() => assertNoLeak({ ...view, place: "Newtown, NSW" })).toThrow(/leaked/);
+  });
+
   it("holds for every valid card fixture in the protocol suite", () => {
     const dir = join(schemaPackageRoot, "fixtures");
     const cards = readdirSync(dir)
@@ -63,12 +84,15 @@ describe("redactForCounterparty proves the no-leak rule", () => {
       .filter((fx) => fx.schema === "intent-card" && fx.valid)
       .map((fx) => fx.data as IntentCard);
     expect(cards.length).toBeGreaterThanOrEqual(5);
+    expect(cards.filter((c) => c.geo.place !== undefined).length).toBeGreaterThanOrEqual(2);
     for (const card of cards) {
       const view = redactForCounterparty(card);
       expect(() => assertNoLeak(view)).not.toThrow();
       const blob = JSON.stringify(view);
       expect(blob).not.toContain('"price"');
       expect(blob).not.toContain('"band"');
+      if (card.geo.place !== undefined) expect(blob).not.toContain(card.geo.place);
+      if (card.geo.bucket !== undefined) expect(blob).not.toContain(card.geo.bucket);
       if (card.price?.band.min !== undefined) {
         expect(blob).not.toContain(String(card.price.band.min));
       }

@@ -9,7 +9,10 @@
  * redactForCounterparty() is allowlist-based: it constructs the outgoing
  * view field by field and never spreads the card, so a new private field
  * added to IntentCard later is excluded by default rather than leaked by
- * default.
+ * default. The place name a human gave for their card is one such field: it
+ * is a matching input like the cell it resolves to, and it stays behind. A
+ * counterparty learns where someone is at stage 3, from the locality on a
+ * profile that human filled in for the purpose, after both sides opted in.
  */
 import type { Ask, Attributes, Category, IntentCard, Urgency } from "./types.js";
 
@@ -50,7 +53,15 @@ export function assertNoLeak(view: object): void {
     }
   }
   const blob = JSON.stringify(view);
-  for (const forbidden of ['"price"', '"band"', '"geo"', '"ttl_days"', '"status"']) {
+  for (const forbidden of [
+    '"price"',
+    '"band"',
+    '"geo"',
+    '"place"',
+    '"bucket"',
+    '"ttl_days"',
+    '"status"',
+  ]) {
     if (blob.includes(forbidden)) {
       throw new Error(`matching input leaked into counterparty view: ${forbidden}`);
     }

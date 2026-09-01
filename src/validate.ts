@@ -9,7 +9,14 @@ import { dirname, join } from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { ValidateFunction } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import type { IntentCard, Offer, SwitchboardError, DenyList } from "./types.js";
+import type {
+  ChannelMessage,
+  DenyList,
+  IntentCard,
+  Offer,
+  Settlement,
+  SwitchboardError,
+} from "./types.js";
 
 const require = createRequire(import.meta.url);
 /** Absolute path to the installed @openswitchboard/schema package root. */
@@ -24,7 +31,9 @@ export const SCHEMA_NAMES = [
   "match.attributes",
   "match.mutual",
   "channel.open",
+  "channel.message",
   "offer",
+  "settlement",
   "error",
   "deny-list",
 ] as const;
@@ -34,7 +43,8 @@ export type PayloadKind =
   | "match.signal"
   | "match.attributes"
   | "match.mutual"
-  | "channel.open";
+  | "channel.open"
+  | "channel.message";
 
 export interface ValidationResult {
   valid: boolean;
@@ -82,13 +92,21 @@ export function validateCard(card: unknown): ValidationResult {
   return run("intent-card", card);
 }
 
-/** Validate a disclosure-stage payload against the schema for `kind`. */
+/** Validate a stage-1 to stage-4 message against the schema for `kind`. */
 export function validatePayload(kind: PayloadKind, payload: unknown): ValidationResult {
   return run(kind, payload);
 }
 
 export function validateOffer(offer: unknown): ValidationResult {
   return run("offer", offer);
+}
+
+export function validateSettlement(settlement: unknown): ValidationResult {
+  return run("settlement", settlement);
+}
+
+export function validateChannelMessage(message: unknown): ValidationResult {
+  return run("channel.message", message);
 }
 
 export function validateError(err: unknown): ValidationResult {
@@ -110,6 +128,12 @@ export function isIntentCard(x: unknown): x is IntentCard {
 }
 export function isOffer(x: unknown): x is Offer {
   return validateOffer(x).valid;
+}
+export function isSettlement(x: unknown): x is Settlement {
+  return validateSettlement(x).valid;
+}
+export function isChannelMessage(x: unknown): x is ChannelMessage {
+  return validateChannelMessage(x).valid;
 }
 export function isSwitchboardError(x: unknown): x is SwitchboardError {
   return validateError(x).valid;

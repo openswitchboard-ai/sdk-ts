@@ -21,11 +21,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # The conformance run imports the schema package's own suite, so that
+      # checkout needs its dependencies too.
+      - run: npm install
+        working-directory: schema
       - run: npm install
         working-directory: sdk-ts
       - name: Lint (typecheck)
         run: npm run lint
         working-directory: sdk-ts
-      - name: Tests (incl. fixture round-trip + no-leak proof)
+      - name: Tests (incl. protocol conformance + no-leak proof)
         run: npm test
         working-directory: sdk-ts
