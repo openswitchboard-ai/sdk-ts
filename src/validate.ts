@@ -10,7 +10,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import type { ValidateFunction } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import type {
-  ChannelMessage,
+  ConversationMessage,
   DenyList,
   IntentCard,
   Offer,
@@ -30,8 +30,8 @@ export const SCHEMA_NAMES = [
   "match.signal",
   "match.attributes",
   "match.mutual",
-  "channel.open",
-  "channel.message",
+  "conversation.open",
+  "conversation.message",
   "offer",
   "settlement",
   "error",
@@ -43,8 +43,8 @@ export type PayloadKind =
   | "match.signal"
   | "match.attributes"
   | "match.mutual"
-  | "channel.open"
-  | "channel.message";
+  | "conversation.open"
+  | "conversation.message";
 
 export interface ValidationResult {
   valid: boolean;
@@ -105,8 +105,8 @@ export function validateSettlement(settlement: unknown): ValidationResult {
   return run("settlement", settlement);
 }
 
-export function validateChannelMessage(message: unknown): ValidationResult {
-  return run("channel.message", message);
+export function validateConversationMessage(message: unknown): ValidationResult {
+  return run("conversation.message", message);
 }
 
 export function validateError(err: unknown): ValidationResult {
@@ -132,8 +132,8 @@ export function isOffer(x: unknown): x is Offer {
 export function isSettlement(x: unknown): x is Settlement {
   return validateSettlement(x).valid;
 }
-export function isChannelMessage(x: unknown): x is ChannelMessage {
-  return validateChannelMessage(x).valid;
+export function isConversationMessage(x: unknown): x is ConversationMessage {
+  return validateConversationMessage(x).valid;
 }
 export function isSwitchboardError(x: unknown): x is SwitchboardError {
   return validateError(x).valid;

@@ -18,12 +18,12 @@ export interface LabeledText {
 }
 
 /**
- * The body of a message carried across an open channel. It is labelled text
- * with the label already settled: a message handed to an agent was written on
+ * The body of a message carried across an open conversation. It is labelled
+ * text with the label already settled: a message handed to an agent was written on
  * the other side, so it is always counterparty-untrusted. The ceiling is 4000
  * characters, the length people write to each other at.
  */
-export interface ChannelBody {
+export interface ConversationBody {
   text: string;
   provenance: "counterparty-untrusted";
 }
@@ -122,37 +122,37 @@ export interface MatchMutual {
   optin: { both_recorded: true; recorded_at: string };
 }
 
-/** Stage 4: a direct channel opens. */
-export interface ChannelOpen {
+/** Stage 4: a direct conversation opens. */
+export interface ConversationOpen {
   schema_version: SchemaVersion;
-  kind: "channel.open";
+  kind: "conversation.open";
   match_id: string;
-  channel: { medium: "in-app"; channel_id: string };
+  conversation: { medium: "in-app"; conversation_id: string };
   opened_at: string;
 }
 
 /**
- * Stage 4: one message collected from an open channel. The switchboard holds
- * a message only until the receiving agent collects it, so collecting is what
+ * Stage 4: one message collected from an open conversation. The switchboard
+ * holds a message only until the receiving agent collects it, so collecting is what
  * deletes it - an agent gets one attempt at a batch and should relay what it
  * collects straight away. `seq` counts the batch just handed over, from 1.
  */
-export interface ChannelMessage {
+export interface ConversationMessage {
   schema_version: SchemaVersion;
-  kind: "channel.message";
-  channel_id: string;
+  kind: "conversation.message";
+  conversation_id: string;
   message_id: string;
   seq?: number;
   sent_at: string; // ISO date-time
-  body: ChannelBody;
+  body: ConversationBody;
 }
 
 export type StagePayload =
   | MatchSignal
   | MatchAttributes
   | MatchMutual
-  | ChannelOpen
-  | ChannelMessage;
+  | ConversationOpen
+  | ConversationMessage;
 
 // ---- negotiation ----------------------------------------------------------
 

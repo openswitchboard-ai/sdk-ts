@@ -7,8 +7,9 @@
  * - There is no acceptOffer(): agents cannot accept. The only path to an
  *   accepted state is recordHumanAcceptance(), which exists precisely so the
  *   call site reads as what it must be - a recorded human decision.
- * - channelMessage() has no provenance parameter: a message carried across a
- *   channel is always the other side's words, and the label says so.
+ * - conversationMessage() has no provenance parameter: a message carried
+ *   across a conversation is always the other side's words, and the label
+ *   says so.
  */
 import { randomUUID } from "node:crypto";
 import type {
@@ -16,7 +17,7 @@ import type {
   Attributes,
   Ccy,
   Category,
-  ChannelMessage,
+  ConversationMessage,
   GeoBucket,
   HaveCard,
   Offer,
@@ -147,9 +148,9 @@ export function withdrawOffer(o: Offer): Offer {
   return { ...o, state: "withdrawn" };
 }
 
-export interface ChannelMessageInput {
-  /** The channel to send on, as issued by channel.open. */
-  channel_id: string;
+export interface ConversationMessageInput {
+  /** The conversation to send on, as issued by conversation.open. */
+  conversation_id: string;
   text: string;
   /** ISO date-time. Defaults to now. */
   sent_at?: string;
@@ -158,16 +159,19 @@ export interface ChannelMessageInput {
 }
 
 /**
- * Build one message for an open channel. Note the signature again: there is
- * no provenance parameter and ChannelBody admits one value, so a message
- * cannot be built claiming to be switchboard text. Whatever this carries, the
- * agent receiving it is told to show it to its human rather than act on it.
+ * Build one message for an open conversation. Note the signature again:
+ * there is no provenance parameter and ConversationBody admits one value, so
+ * a message cannot be built claiming to be switchboard text. Whatever this
+ * carries, the agent receiving it is told to show it to its human rather than
+ * act on it.
  */
-export function channelMessage(input: ChannelMessageInput): ChannelMessage {
-  const msg: ChannelMessage = {
+export function conversationMessage(
+  input: ConversationMessageInput,
+): ConversationMessage {
+  const msg: ConversationMessage = {
     schema_version: SCHEMA_VERSION,
-    kind: "channel.message",
-    channel_id: input.channel_id,
+    kind: "conversation.message",
+    conversation_id: input.conversation_id,
     message_id: randomUUID(),
     sent_at: input.sent_at ?? new Date().toISOString(),
     body: { text: input.text, provenance: "counterparty-untrusted" },

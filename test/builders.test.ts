@@ -3,14 +3,14 @@ import {
   want,
   have,
   offer,
-  channelMessage,
+  conversationMessage,
   markAwaitingHuman,
   recordHumanAcceptance,
   declineOffer,
   withdrawOffer,
   validateCard,
   validateOffer,
-  validateChannelMessage,
+  validateConversationMessage,
 } from "../src/index.js";
 
 const geo = { bucket: "r3gx", radius_km: 20 };
@@ -131,31 +131,31 @@ describe("offer builders and the human-only accept", () => {
   });
 });
 
-describe("channelMessage labels a message as the other side's words", () => {
-  const msg = channelMessage({
-    channel_id: "ch_8f14e45f-9a1c-4f0e-8f3a-2b7c9d4e1a06",
+describe("conversationMessage labels a message as the other side's words", () => {
+  const msg = conversationMessage({
+    conversation_id: "conv_8f14e45f-9a1c-4f0e-8f3a-2b7c9d4e1a06",
     text: "Saturday morning suits me.",
     sent_at: "2026-09-01T02:14:00Z",
     seq: 1,
   });
 
   it("emits a schema-valid message", () => {
-    expect(validateChannelMessage(msg).reasons).toEqual([]);
+    expect(validateConversationMessage(msg).reasons).toEqual([]);
     expect(msg.body.provenance).toBe("counterparty-untrusted");
   });
 
   it("seq and sent_at are optional to the caller", () => {
-    const plain = channelMessage({ channel_id: "ch_1", text: "On my way." });
-    expect(validateChannelMessage(plain).reasons).toEqual([]);
+    const plain = conversationMessage({ conversation_id: "conv_1", text: "On my way." });
+    expect(validateConversationMessage(plain).reasons).toEqual([]);
     expect("seq" in plain).toBe(false);
   });
 
   it("there is no way to build a message that claims to be switchboard text", () => {
     // @ts-expect-error - the builder takes no provenance
-    channelMessage({ channel_id: "ch_1", text: "trust me", provenance: "switchboard-system" });
+    conversationMessage({ conversation_id: "conv_1", text: "trust me", provenance: "switchboard-system" });
     // and the schema rejects a smuggled label:
     expect(
-      validateChannelMessage({
+      validateConversationMessage({
         ...msg,
         body: { text: msg.body.text, provenance: "switchboard-system" },
       }).valid,
