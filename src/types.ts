@@ -1,5 +1,5 @@
 /**
- * Hand-written TypeScript types mirroring @openswitchboard/schema 0.5.0.
+ * Hand-written TypeScript types mirroring @openswitchboard/schema 0.12.0.
  * The schemas are the source of truth; the round-trip tests in test/
  * validate every example the schema package ships through these types'
  * validators to keep the two in lockstep.
@@ -37,7 +37,7 @@ interface GeoBucketBase {
  * Location on the switchboard is always an area. Give `place` - the name of a
  * suburb, city or region - and the switchboard resolves it to a coarse cell.
  * `bucket` is that cell itself (a geohash4), for agents that already hold one.
- * A card carries at least one of the two, which is why this is a union: a
+ * A listing carries at least one of the two, which is why this is a union: a
  * geo with neither does not typecheck, exactly as the schema rejects it.
  */
 export type GeoBucket =
@@ -45,7 +45,8 @@ export type GeoBucket =
   | (GeoBucketBase & { place?: string; bucket: string });
 
 /**
- * MATCHING INPUT ONLY. On a WANT: budget ceiling. On a HAVE: reserve floor.
+ * MATCHING INPUT ONLY. On a looking-for listing: budget ceiling. On an
+ * offering listing: reserve floor.
  * Never disclosed to a counterparty; see redactForCounterparty().
  */
 export interface PriceBand {
@@ -53,7 +54,7 @@ export interface PriceBand {
   ccy: Ccy;
 }
 
-/** A deliberate, disclosable asking price (HAVE only). */
+/** A deliberate, disclosable asking price (offering listings only). */
 export interface Ask {
   amount: number;
   ccy: Ccy;
@@ -63,7 +64,7 @@ export type AttributeValue = string | number | boolean;
 export type Attributes = Record<string, AttributeValue>;
 
 export type Urgency = "none" | "days" | "today";
-export type Visibility = "anonymous-until-match";
+export type Visibility = "anonymous-until-introduced";
 export type CardStatus = "active" | "latent";
 
 interface IntentCardBase {
@@ -78,61 +79,60 @@ interface IntentCardBase {
   ttl_days?: number; // 1-90, default 60
 }
 
-export interface WantCard extends IntentCardBase {
-  type: "WANT";
-  /** Structurally absent: a WANT has no ask. */
+export interface LookingForCard extends IntentCardBase {
+  type: "looking_for";
+  /** Structurally absent: a looking-for listing has no ask. */
   ask?: never;
 }
 
-export interface HaveCard extends IntentCardBase {
-  type: "HAVE";
+export interface OfferingCard extends IntentCardBase {
+  type: "offering";
   ask?: Ask;
 }
 
-export type IntentCard = WantCard | HaveCard;
+export type IntentCard = LookingForCard | OfferingCard;
 
-// ---- disclosure stages ----------------------------------------------------
+// ---- disclosure steps -----------------------------------------------------
 
-/** Stage 1: a match exists. No attributes, no prices, no free text. */
-export interface MatchSignal {
+/** The signal step: an introduction exists. No attributes, no prices, no free text. */
+export interface IntroSignal {
   schema_version: SchemaVersion;
-  kind: "match.signal";
-  match_id: string;
-  score: number; // 0-1
+  kind: "intro.signal";
+  intro_id: string;
   category: Category;
-  counterparty_type?: "WANT" | "HAVE";
+  counterparty_type?: "looking_for" | "offering";
 }
 
-/** Stage 2: attributes + ask + provenance-labelled notes. No price bands. */
-export interface MatchAttributes {
+/** The details step: attributes + ask + provenance-labelled notes. No price bands. */
+export interface IntroAttributes {
   schema_version: SchemaVersion;
-  kind: "match.attributes";
-  match_id: string;
+  kind: "intro.attributes";
+  intro_id: string;
   attributes: Attributes;
   ask?: Ask;
   notes?: LabeledText[];
 }
 
-/** Stage 3: first name + coarse locality, only after recorded double opt-in. */
-export interface MatchMutual {
+/** The names step: first name + coarse locality, only after recorded double opt-in. */
+export interface IntroMutual {
   schema_version: SchemaVersion;
-  kind: "match.mutual";
-  match_id: string;
+  kind: "intro.mutual";
+  intro_id: string;
   counterparty: { first_name: string; locality: string };
   optin: { both_recorded: true; recorded_at: string };
 }
 
-/** Stage 4: a direct conversation opens. */
+/** The conversation opens. */
 export interface ConversationOpen {
   schema_version: SchemaVersion;
   kind: "conversation.open";
-  match_id: string;
+  intro_id: string;
   conversation: { medium: "in-app"; conversation_id: string };
   opened_at: string;
 }
 
 /**
- * Stage 4: one message collected from an open conversation. The switchboard
+ * One message collected from an open conversation. The switchboard
  * holds a message only until the receiving agent collects it, so collecting is what
  * deletes it - an agent gets one attempt at a batch and should relay what it
  * collects straight away. `seq` counts the batch just handed over, from 1.
@@ -147,10 +147,10 @@ export interface ConversationMessage {
   body: ConversationBody;
 }
 
-export type StagePayload =
-  | MatchSignal
-  | MatchAttributes
-  | MatchMutual
+export type StepPayload =
+  | IntroSignal
+  | IntroAttributes
+  | IntroMutual
   | ConversationOpen
   | ConversationMessage;
 
@@ -171,7 +171,7 @@ export interface Offer {
   schema_version: SchemaVersion;
   kind: "offer";
   offer_id: string;
-  match_id: string;
+  intro_id: string;
   amount: number;
   ccy: Ccy;
   expiry: string; // ISO date-time
@@ -207,7 +207,7 @@ export interface Settlement {
   schema_version: SchemaVersion;
   kind: "settlement";
   settlement_id: string;
-  match_id: string;
+  intro_id: string;
   amount: number;
   ccy: Ccy;
   /** What the settlement is for, in the proposer's words. */
@@ -224,12 +224,14 @@ export type ErrorCode =
   | "SCHEMA_VERSION_UNSUPPORTED"
   | "QUOTA_EXCEEDED"
   | "CATEGORY_PROHIBITED"
-  | "STAGE_LOCKED"
+  | "NOT_UNLOCKED_YET"
   | "INTENT_EXPIRED"
   | "SCREENING_REJECTED"
   | "RATE_LIMITED_OFFERS"
+  | "RATE_LIMITED"
   | "SETTLEMENT_UNAVAILABLE"
-  | "LOCATION_UNRESOLVED";
+  | "LOCATION_UNRESOLVED"
+  | "LOCATION_AMBIGUOUS";
 
 export interface SwitchboardError {
   schema_version?: SchemaVersion;

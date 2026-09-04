@@ -27,9 +27,9 @@ export const schemaPackageRoot = dirname(
 export const SCHEMA_NAMES = [
   "common",
   "intent-card",
-  "match.signal",
-  "match.attributes",
-  "match.mutual",
+  "intro.signal",
+  "intro.attributes",
+  "intro.mutual",
   "conversation.open",
   "conversation.message",
   "offer",
@@ -40,9 +40,9 @@ export const SCHEMA_NAMES = [
 
 export type SchemaName = (typeof SCHEMA_NAMES)[number];
 export type PayloadKind =
-  | "match.signal"
-  | "match.attributes"
-  | "match.mutual"
+  | "intro.signal"
+  | "intro.attributes"
+  | "intro.mutual"
   | "conversation.open"
   | "conversation.message";
 
@@ -87,12 +87,12 @@ function run(schema: SchemaName, data: unknown): ValidationResult {
   return { valid, reasons };
 }
 
-/** Validate a WANT/HAVE intent card. */
+/** Validate a looking-for or offering intent card. */
 export function validateCard(card: unknown): ValidationResult {
   return run("intent-card", card);
 }
 
-/** Validate a stage-1 to stage-4 message against the schema for `kind`. */
+/** Validate a disclosure message against the schema for `kind`. */
 export function validatePayload(kind: PayloadKind, payload: unknown): ValidationResult {
   return run(kind, payload);
 }

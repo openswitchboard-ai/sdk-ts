@@ -1,7 +1,7 @@
 /**
  * Builders that make invalid states unrepresentable where practical:
  *
- * - want() has no way to attach an ask (the type forbids it).
+ * - lookingFor() has no way to attach an ask (the type forbids it).
  * - declineOffer() takes no reason parameter, and Offer.reason is `never` -
  *   a decline reason cannot be expressed (anti-probing by design).
  * - There is no acceptOffer(): agents cannot accept. The only path to an
@@ -19,16 +19,16 @@ import type {
   Category,
   ConversationMessage,
   GeoBucket,
-  HaveCard,
+  OfferingCard,
   Offer,
   PriceBand,
   Urgency,
-  WantCard,
+  LookingForCard,
 } from "./types.js";
 
-export const SCHEMA_VERSION = "0.5.0";
+export const SCHEMA_VERSION = "0.12.0";
 
-export interface WantInput {
+export interface LookingForInput {
   category: Category;
   /** A place name, a canonical cell, or both. Matching input only. */
   geo: GeoBucket;
@@ -40,13 +40,13 @@ export interface WantInput {
   ttl_days?: number;
 }
 
-export function want(input: WantInput): WantCard {
-  const card: WantCard = {
+export function lookingFor(input: LookingForInput): LookingForCard {
+  const card: LookingForCard = {
     schema_version: SCHEMA_VERSION,
-    type: "WANT",
+    type: "looking_for",
     category: input.category,
     geo: input.geo,
-    visibility: "anonymous-until-match",
+    visibility: "anonymous-until-introduced",
     status: input.latent ? "latent" : "active",
     urgency: input.urgency ?? "none",
     ttl_days: input.ttl_days ?? 60,
@@ -60,7 +60,7 @@ export function want(input: WantInput): WantCard {
   return card;
 }
 
-export interface HaveInput {
+export interface OfferingInput {
   category: Category;
   /** A place name, a canonical cell, or both. Matching input only. */
   geo: GeoBucket;
@@ -74,13 +74,13 @@ export interface HaveInput {
   ttl_days?: number;
 }
 
-export function have(input: HaveInput): HaveCard {
-  const card: HaveCard = {
+export function offering(input: OfferingInput): OfferingCard {
+  const card: OfferingCard = {
     schema_version: SCHEMA_VERSION,
-    type: "HAVE",
+    type: "offering",
     category: input.category,
     geo: input.geo,
-    visibility: "anonymous-until-match",
+    visibility: "anonymous-until-introduced",
     status: input.latent ? "latent" : "active",
     urgency: input.urgency ?? "none",
     ttl_days: input.ttl_days ?? 60,
@@ -94,7 +94,7 @@ export function have(input: HaveInput): HaveCard {
 }
 
 export interface OfferInput {
-  match_id: string;
+  intro_id: string;
   amount: number;
   ccy: Ccy;
   /** ISO date-time. */
@@ -109,7 +109,7 @@ export function offer(input: OfferInput): Offer {
     schema_version: SCHEMA_VERSION,
     kind: "offer",
     offer_id: randomUUID(),
-    match_id: input.match_id,
+    intro_id: input.intro_id,
     amount: input.amount,
     ccy: input.ccy,
     expiry: input.expiry,

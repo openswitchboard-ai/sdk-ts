@@ -7,8 +7,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import {
-  have,
-  want,
+  offering,
+  lookingFor,
   redactForCounterparty,
   assertNoLeak,
   schemaPackageRoot,
@@ -16,8 +16,8 @@ import {
 } from "../src/index.js";
 
 describe("redactForCounterparty proves the no-leak rule", () => {
-  it("strips the reserve floor from a HAVE but keeps the deliberate ask", () => {
-    const card = have({
+  it("strips the reserve floor from an offering listing but keeps the deliberate ask", () => {
+    const card = offering({
       category: "goods.bicycle.road",
       geo: { bucket: "r3gx" },
       reserve: { min: 450, ccy: "AUD" },
@@ -26,7 +26,7 @@ describe("redactForCounterparty proves the no-leak rule", () => {
     });
     const view = redactForCounterparty(card);
     expect(view).toEqual({
-      type: "HAVE",
+      type: "offering",
       category: "goods.bicycle.road",
       attributes: { condition: "like-new" },
       urgency: "none",
@@ -39,8 +39,8 @@ describe("redactForCounterparty proves the no-leak rule", () => {
     expect(() => assertNoLeak(view)).not.toThrow();
   });
 
-  it("strips the budget ceiling from a WANT entirely", () => {
-    const card = want({
+  it("strips the budget ceiling from a looking-for listing entirely", () => {
+    const card = lookingFor({
       category: "goods.electronics.laptop",
       geo: { bucket: "dr5r", radius_km: 15 },
       budget: { min: 200, max: 900, ccy: "USD" },
@@ -56,12 +56,12 @@ describe("redactForCounterparty proves the no-leak rule", () => {
   });
 
   it("keeps the place name back, the same as the cell it resolves to", () => {
-    // A place is a matching input, not a disclosure: the stage-2 message the
+    // A place is a matching input and never a disclosure: the details-step message the
     // server builds carries attributes and a stated ask and nothing else, and
     // its schema has no slot for a location at all. Where someone is reaches a
-    // counterparty at stage 3, from the locality on the profile that human
+    // counterparty at the names step, from the locality on the profile that human
     // filled in for it, once both sides have opted in.
-    const card = have({
+    const card = offering({
       category: "goods.furniture.sofa",
       geo: { place: "Newtown, NSW", bucket: "r3gx", radius_km: 15 },
       ask: { amount: 120, ccy: "AUD" },
@@ -103,7 +103,7 @@ describe("redactForCounterparty proves the no-leak rule", () => {
   });
 
   it("assertNoLeak catches a leaky view", () => {
-    expect(() => assertNoLeak({ type: "HAVE", price: { band: { min: 1 } } })).toThrow(
+    expect(() => assertNoLeak({ type: "offering", price: { band: { min: 1 } } })).toThrow(
       /leaked/,
     );
   });

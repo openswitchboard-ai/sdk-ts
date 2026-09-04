@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  want,
-  have,
+  lookingFor,
+  offering,
   offer,
   conversationMessage,
   markAwaitingHuman,
@@ -17,8 +17,8 @@ const geo = { bucket: "r3gx", radius_km: 20 };
 const MID = "0d9f2c1e-7b4a-4f7e-9c2d-1a2b3c4d5e6f";
 
 describe("card builders emit schema-valid cards", () => {
-  it("want() with budget ceiling", () => {
-    const card = want({
+  it("lookingFor() with budget ceiling", () => {
+    const card = lookingFor({
       category: "goods.bicycle.mountain",
       geo,
       budget: { max: 800, ccy: "AUD" },
@@ -27,14 +27,14 @@ describe("card builders emit schema-valid cards", () => {
       ttl_days: 7,
     });
     expect(validateCard(card).reasons).toEqual([]);
-    expect(card.type).toBe("WANT");
-    // The type makes an ask unrepresentable on a WANT:
-    // @ts-expect-error - ask cannot exist on a WantCard
+    expect(card.type).toBe("looking_for");
+    // The type makes an ask unrepresentable on a looking-for listing:
+    // @ts-expect-error - ask cannot exist on a LookingForCard
     card.ask = { amount: 1, ccy: "AUD" };
   });
 
-  it("have() latent with reserve floor and ask", () => {
-    const card = have({
+  it("offering() latent with reserve floor and ask", () => {
+    const card = offering({
       category: "goods.bicycle.road",
       geo,
       reserve: { min: 450, ccy: "AUD" },
@@ -46,10 +46,10 @@ describe("card builders emit schema-valid cards", () => {
     expect(card.price?.band.min).toBe(450);
   });
 
-  it("minimal want() applies protocol defaults", () => {
-    const card = want({ category: "goods.baby.stroller", geo: { bucket: "r1r0" } });
+  it("minimal lookingFor() applies protocol defaults", () => {
+    const card = lookingFor({ category: "goods.baby.stroller", geo: { bucket: "r1r0" } });
     expect(validateCard(card).reasons).toEqual([]);
-    expect(card.visibility).toBe("anonymous-until-match");
+    expect(card.visibility).toBe("anonymous-until-introduced");
     expect(card.status).toBe("active");
     expect(card.ttl_days).toBe(60);
     expect(card.urgency).toBe("none");
@@ -57,8 +57,8 @@ describe("card builders emit schema-valid cards", () => {
 });
 
 describe("location can be a place name the human would say", () => {
-  it("want() takes a place on its own", () => {
-    const card = want({
+  it("lookingFor() takes a place on its own", () => {
+    const card = lookingFor({
       category: "goods.bicycle.mountain",
       geo: { place: "Canberra", radius_km: 25 },
     });
@@ -66,8 +66,8 @@ describe("location can be a place name the human would say", () => {
     expect(card.geo.place).toBe("Canberra");
   });
 
-  it("have() takes a place alongside the cell it resolved to", () => {
-    const card = have({
+  it("offering() takes a place alongside the cell it resolved to", () => {
+    const card = offering({
       category: "goods.furniture.sofa",
       geo: { place: "Newtown, NSW", bucket: "r3gx", radius_km: 15 },
       ask: { amount: 120, ccy: "AUD" },
@@ -78,11 +78,11 @@ describe("location can be a place name the human would say", () => {
 
   it("a geo with neither a place nor a cell does not typecheck", () => {
     // @ts-expect-error - one of place or bucket is required
-    want({ category: "goods.bicycle.mountain", geo: { radius_km: 25 } });
+    lookingFor({ category: "goods.bicycle.mountain", geo: { radius_km: 25 } });
   });
 
   it("a street address is refused, because a card names an area", () => {
-    const card = want({
+    const card = lookingFor({
       category: "goods.bicycle.mountain",
       geo: { place: "12 Smith St" },
     });
@@ -94,7 +94,7 @@ describe("location can be a place name the human would say", () => {
 
 describe("offer builders and the human-only accept", () => {
   const base = offer({
-    match_id: MID,
+    intro_id: MID,
     amount: 600,
     ccy: "AUD",
     expiry: "2026-09-05T00:00:00Z",
