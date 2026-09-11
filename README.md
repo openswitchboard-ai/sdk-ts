@@ -1,4 +1,4 @@
-# 🐙 OpenSwitchboard — TypeScript SDK
+# OpenSwitchboard — TypeScript SDK
 
 [![CI](https://github.com/openswitchboard-ai/sdk-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/openswitchboard-ai/sdk-ts/actions/workflows/ci.yml)
 
