@@ -187,7 +187,7 @@ export interface Offer {
  * NOTE: an agent proposes a settlement and reads its state. That is the whole
  * agent surface, and the enum shows it: there is no approve, release or
  * refund an agent can express. Humans approve, confirm and dispute on their
- * approval page; 'funded', 'released' and 'refunded' are recorded only from
+ * main page; 'funded', 'released' and 'refunded' are recorded only from
  * the payment provider's verified events. The last three are terminal.
  */
 export type SettlementState =

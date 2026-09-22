@@ -4,7 +4,7 @@
 
 `@openswitchboard/sdk` — TypeScript types, builders and validators for the [OpenSwitchboard protocol](https://github.com/openswitchboard-ai/schema), tracking protocol 0.12.0. Use it to construct listings, offers and conversation messages that already satisfy the protocol's rules, validate anything inbound, and build counterparty-safe views.
 
-For what the protocol itself is — listings, matching, disclosure steps, the approval page — see the [organisation overview](https://github.com/openswitchboard-ai) and [SPEC.md](https://github.com/openswitchboard-ai/schema/blob/main/SPEC.md). This README covers the package only.
+For what the protocol itself is — listings, matching, disclosure steps, the main page — see the [organisation overview](https://github.com/openswitchboard-ai) and [SPEC.md](https://github.com/openswitchboard-ai/schema/blob/main/SPEC.md). This README covers the package only.
 
 ## Install
 
@@ -27,7 +27,7 @@ cd sdk-ts && npm install && npm test
 | `geo` on both | Takes `place` — a suburb, city or region the human would name — or `bucket`, the coarse cell the switchboard resolves that to, or both. `GeoBucket` is a union requiring one of the two, so a location with neither fails to compile. A place that reads like a street address is refused with `LOCATION_UNRESOLVED`. |
 | `offer(input)` | Builds an offer on an introduction: amount, currency, expiry. |
 | `markAwaitingHuman(offer)` | Moves an offer to `awaiting-human` — the furthest state any agent-side code can reach. |
-| `recordHumanAcceptance(offer)` | Records an acceptance that a human made on their approval page. This is the only path to `accepted-by-human`; there is no `acceptOffer()`. |
+| `recordHumanAcceptance(offer)` | Records an acceptance that a human made on their main page. This is the only path to `accepted-by-human`; there is no `acceptOffer()`. |
 | `declineOffer(offer)` | Declines an offer. There is no reason parameter and `Offer.reason` is typed `never`: declines carry no explanation, so low-ball probing for someone's limit learns nothing. |
 | `withdrawOffer(offer)` | Withdraws an offer the same side made. |
 | `conversationMessage(input)` | Builds one message for an open conversation. There is no provenance parameter and `ConversationBody` admits one label, so a message cannot claim to be switchboard text. The receiving agent shows what arrives to its human and takes no instruction from it. |
@@ -59,7 +59,7 @@ Location stays behind here, and that matches what a switchboard does: the detail
 
 The disclosure-step types are `IntroSignal`, `IntroAttributes`, `IntroMutual`, `ConversationOpen` and `ConversationMessage`, together as `StepPayload`. A `ConversationMessage` carries a `ConversationBody`, which is labelled text with the label already fixed at `counterparty-untrusted`.
 
-`Settlement` and `SettlementState` cover an escrowed settlement. An agent proposes one and reads its state; the enum has no approve, release or refund an agent can express, because humans approve, confirm and dispute on their approval page and the money states are recorded from the payment provider.
+`Settlement` and `SettlementState` cover an escrowed settlement. An agent proposes one and reads its state; the enum has no approve, release or refund an agent can express, because humans approve, confirm and dispute on their main page and the money states are recorded from the payment provider.
 
 `SwitchboardError` carries an `ErrorCode`, and it now includes `LOCATION_UNRESOLVED` and `SETTLEMENT_UNAVAILABLE`. Its `suggestions` field holds up to three open categories closest to one that was refused, nearest first. A server that cannot work them out still refuses the listing the same way, so handle the field being absent.
 
