@@ -20,24 +20,31 @@ import type {
   ConversationMessage,
   GeoBucket,
   OfferingCard,
+  Sale,
   Offer,
   PriceBand,
   Urgency,
   LookingForCard,
 } from "./types.js";
 
-export const SCHEMA_VERSION = "0.12.0";
+/** The protocol version this SDK tracks, written on everything it builds. */
+export const SCHEMA_VERSION = "0.17.1";
 
 export interface LookingForInput {
   category: Category;
+  /** The human's own words for the thing. Required under a leaf the taxonomy does not know. */
+  kind?: string;
   /** A place name, a canonical cell, or both. Matching input only. */
   geo: GeoBucket;
   /** Budget ceiling - matching input only, never disclosed. */
   budget?: { max: number; min?: number; ccy: Ccy };
   attributes?: Attributes;
   urgency?: Urgency;
+  /** true makes it a back-pocket want, surfaced only when a real introduction appears. */
   latent?: boolean;
   ttl_days?: number;
+  /** How many people it can take at once, 1-10. */
+  slots?: number;
 }
 
 export function lookingFor(input: LookingForInput): LookingForCard {
@@ -56,22 +63,34 @@ export function lookingFor(input: LookingForInput): LookingForCard {
     if (input.budget.min !== undefined) band.min = input.budget.min;
     card.price = { band, ccy: input.budget.ccy };
   }
+  if (input.kind) card.kind = input.kind;
   if (input.attributes) card.attributes = input.attributes;
+  if (input.slots !== undefined) card.slots = input.slots;
   return card;
 }
 
 export interface OfferingInput {
   category: Category;
+  /** The human's own words for the thing. Required under a leaf the taxonomy does not know. */
+  kind?: string;
   /** A place name, a canonical cell, or both. Matching input only. */
   geo: GeoBucket;
   /** Reserve floor - matching input only, never disclosed. */
   reserve?: { min: number; ccy: Ccy };
-  /** Deliberate, disclosable asking price. */
+  /** Deliberate, disclosable asking price, on a straight sale. */
   ask?: Ask;
+  /**
+   * 'straight' (the default) or 'best-offer'. A best offer takes no ask:
+   * its floor is `reserve`, which is never shown to anyone.
+   */
+  sale?: Sale;
   attributes?: Attributes;
   urgency?: Urgency;
+  /** true makes it a back-pocket have, surfaced only when a real introduction appears. */
   latent?: boolean;
   ttl_days?: number;
+  /** How many people it can take at once, 1-10. */
+  slots?: number;
 }
 
 export function offering(input: OfferingInput): OfferingCard {
@@ -88,8 +107,16 @@ export function offering(input: OfferingInput): OfferingCard {
   if (input.reserve) {
     card.price = { band: { min: input.reserve.min }, ccy: input.reserve.ccy };
   }
+  if (input.sale === "best-offer" && input.ask) {
+    throw new Error(
+      "A best-offer sale carries no asking price: its floor is the private reserve. The switchboard refuses this with FLOOR_IS_PRIVATE.",
+    );
+  }
+  if (input.kind) card.kind = input.kind;
   if (input.ask) card.ask = input.ask;
+  if (input.sale) card.sale = input.sale;
   if (input.attributes) card.attributes = input.attributes;
+  if (input.slots !== undefined) card.slots = input.slots;
   return card;
 }
 

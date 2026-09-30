@@ -162,3 +162,42 @@ describe("conversationMessage labels a message as the other side's words", () =>
     ).toBe(false);
   });
 });
+
+describe("0.17 fields", () => {
+  it("offering() carries kind, slots, a best-offer sale and a reach", () => {
+    const card = offering({
+      category: "goods.electronics.laptop",
+      kind: "laptop",
+      geo: { place: "Hobart, Tasmania, Australia", reach: "country" },
+      reserve: { min: 500, ccy: "AUD" },
+      sale: "best-offer",
+      slots: 2,
+    });
+    expect(validateCard(card).reasons).toEqual([]);
+    expect(card.sale).toBe("best-offer");
+    expect(card.ask).toBeUndefined();
+  });
+
+  it("offering() refuses an asking price on a best-offer sale", () => {
+    expect(() =>
+      offering({
+        category: "goods.electronics.laptop",
+        geo: { place: "Hobart, Tasmania, Australia" },
+        ask: { amount: 700, ccy: "AUD" },
+        sale: "best-offer",
+      }),
+    ).toThrow(/FLOOR_IS_PRIVATE/);
+  });
+
+  it("lookingFor() carries kind and slots", () => {
+    const card = lookingFor({
+      category: "social.activity-partner",
+      kind: "bouldering partner",
+      geo: { place: "Hobart, Tasmania, Australia", radius_km: 15 },
+      slots: 3,
+    });
+    expect(validateCard(card).reasons).toEqual([]);
+    // @ts-expect-error - a want is not sold
+    card.sale = "straight";
+  });
+});

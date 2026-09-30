@@ -62,6 +62,9 @@ export function assertNoLeak(view: object): void {
     '"bucket"',
     '"ttl_days"',
     '"status"',
+    '"slots"',
+    '"sale"',
+    '"reach"',
   ]) {
     if (blob.includes(forbidden)) {
       throw new Error(`matching input leaked into counterparty view: ${forbidden}`);

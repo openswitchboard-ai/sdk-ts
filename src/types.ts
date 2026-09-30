@@ -1,5 +1,5 @@
 /**
- * Hand-written TypeScript types mirroring @openswitchboard/schema 0.12.0.
+ * Hand-written TypeScript types mirroring @openswitchboard/schema 0.17.1.
  * The schemas are the source of truth; the round-trip tests in test/
  * validate every example the schema package ships through these types'
  * validators to keep the two in lockstep.
@@ -28,14 +28,24 @@ export interface ConversationBody {
   provenance: "counterparty-untrusted";
 }
 
+/**
+ * How far the human will meet the other side. 'radius' (the default) is within
+ * radius_km of the place; 'country' is anywhere in the place's own country;
+ * 'anywhere' has no limit, for something done online.
+ */
+export type Reach = "radius" | "country" | "anywhere";
+
 interface GeoBucketBase {
-  /** How far the human will travel. Left out, the switchboard uses the width of the named area. */
+  /** How far the human will travel on 'radius'. Left out, the switchboard uses the width of the named area. */
   radius_km?: number;
+  reach?: Reach;
 }
 
 /**
- * Location on the switchboard is always an area. Give `place` - the name of a
- * suburb, city or region - and the switchboard resolves it to a coarse cell.
+ * Location on the switchboard is always an area. Give `place`, written in full
+ * as town, state and country ("Hobart, Tasmania, Australia"), and the
+ * switchboard resolves it to a coarse cell. A shorter place is refused with
+ * LOCATION_NOT_FULL.
  * `bucket` is that cell itself (a geohash4), for agents that already hold one.
  * A listing carries at least one of the two, which is why this is a union: a
  * geo with neither does not typecheck, exactly as the schema rejects it.
@@ -54,7 +64,7 @@ export interface PriceBand {
   ccy: Ccy;
 }
 
-/** A deliberate, disclosable asking price (offering listings only). */
+/** A deliberate, disclosable asking price (a have on a straight sale only). */
 export interface Ask {
   amount: number;
   ccy: Ccy;
@@ -66,10 +76,22 @@ export type Attributes = Record<string, AttributeValue>;
 export type Urgency = "none" | "days" | "today";
 export type Visibility = "anonymous-until-introduced";
 export type CardStatus = "active" | "latent";
+/**
+ * How a have is sold. 'straight' carries the asking price in `ask`.
+ * 'best-offer' carries no asking price: its floor is the private price band,
+ * and a server refuses a best-offer have with an `ask` (FLOOR_IS_PRIVATE).
+ */
+export type Sale = "straight" | "best-offer";
 
 interface IntentCardBase {
   schema_version: SchemaVersion;
   category: Category;
+  /**
+   * What the thing is in the human's own plain words, at most 60 characters
+   * and six words. Required where the category names a leaf the taxonomy does
+   * not know.
+   */
+  kind?: string;
   geo: GeoBucket;
   price?: PriceBand;
   attributes?: Attributes;
@@ -77,17 +99,22 @@ interface IntentCardBase {
   visibility?: Visibility;
   status?: CardStatus;
   ttl_days?: number; // 1-90, default 60
+  /** How many people this can take at once, 1-10, default 1. Never shown to anyone. */
+  slots?: number;
 }
 
 export interface LookingForCard extends IntentCardBase {
   type: "looking_for";
-  /** Structurally absent: a looking-for listing has no ask. */
+  /** Structurally absent: a want has no ask. */
   ask?: never;
+  /** Structurally absent: a want is not sold. */
+  sale?: never;
 }
 
 export interface OfferingCard extends IntentCardBase {
   type: "offering";
   ask?: Ask;
+  sale?: Sale;
 }
 
 export type IntentCard = LookingForCard | OfferingCard;
@@ -231,7 +258,34 @@ export type ErrorCode =
   | "RATE_LIMITED"
   | "SETTLEMENT_UNAVAILABLE"
   | "LOCATION_UNRESOLVED"
-  | "LOCATION_AMBIGUOUS";
+  | "LOCATION_AMBIGUOUS"
+  | "LOCATION_NOT_FULL"
+  | "SUSPENDED"
+  | "CONVERSATION_PAUSED"
+  | "NEEDS_DETAIL"
+  | "CONFIRM_FIGURE"
+  | "SHELF_UNCLEAR"
+  | "SHELF_PICK"
+  | "FLOOR_IS_PRIVATE";
+
+/** A place a full name could still mean, on LOCATION_AMBIGUOUS. */
+export interface PlaceCandidate {
+  display: string;
+  place: string;
+}
+
+/** A shelf a posting could go on, on SHELF_UNCLEAR. The last is 'none_of_these'. */
+export interface ShelfCandidate {
+  category: string;
+  words: string;
+}
+
+/** A money figure read back on CONFIRM_FIGURE. */
+export interface ErrorFigure {
+  what: string;
+  amount: number;
+  currency: Ccy;
+}
 
 export interface SwitchboardError {
   schema_version?: SchemaVersion;
@@ -244,6 +298,16 @@ export interface SwitchboardError {
    * way, so handle this being absent.
    */
   suggestions?: Category[];
+  /** LOCATION_AMBIGUOUS: places; SHELF_UNCLEAR: shelves. At most five. */
+  candidates?: (PlaceCandidate | ShelfCandidate)[];
+  /** NEEDS_DETAIL and CONFIRM_FIGURE: the questions to put to the human, at most four. */
+  questions?: string[];
+  /** CONFIRM_FIGURE: the figures to say back to the human, at most four. */
+  figures?: ErrorFigure[];
+  /** The press to wait on with wait_for_press, when the refusal hands over a link. */
+  press_id?: string;
+  /** The posting attempt's own number, sent back with the next try. Never said to a human. */
+  reference?: string;
   docs_url: string;
 }
 
@@ -266,8 +330,15 @@ export type SuggestionAppetite = "keen" | "occasional" | "big-things-only" | "ne
  * still goes to the human.
  */
 export interface StandingArrangement {
-  /** How often to check, in the human's words. */
-  check_cadence?: string;
+  /**
+   * Whether this agent runs between conversations: it can wake itself and
+   * reach its human without being spoken to first. Saving it true with a
+   * cadence makes the agent the human's messenger, and the switchboard's
+   * email notices stop until the human turns them back on.
+   */
+  runs_on_its_own?: boolean;
+  /** How often to check, in minutes, 30-10080. Accepted only with runs_on_its_own: true. */
+  check_every_minutes?: number;
   /** What earns an interruption there and then. */
   interrupt_for?: string[];
   /** What waits for a summary, and when that summary comes. */
